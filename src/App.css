@@ -1,0 +1,86 @@
+.App {
+  background-color: #4e4e4e;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.Dropzone {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.react-pdf__Document {
+  margin: 1.5em 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.react-pdf__Page {
+  margin-top: 1em;
+}
+
+.Header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7em;
+  background: rgba(0,0,0,0.7);
+  z-index: 999;
+}
+
+.Header-item {
+  flex: 1;
+  padding: 0.5em 1em;
+}
+
+.Toolbar {
+  position: fixed;
+  bottom: 1em;
+  right: 1em;
+}
+
+.Toolbar-item {
+  margin-top: 0.5em;
+  background: #ccc;
+  color: #000;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 0.8em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.Editor {
+  position: fixed;
+  top: 2em;
+  left: 0.5em;
+}
+
+.Editor-item {
+  background: #ccc;
+  margin-bottom: 0.5em;
+  color: #000;
+  font-size: 0.5em;
+  padding: 0.5em 1em;
+  border-radius: 1em;
+  text-align: center;
+  cursor: pointer;
+}
+
+.text-right {text-align:right}
+.text-center {text-align:center}
