@@ -27,16 +27,16 @@ function App() {
 
   const sigCanvas = useRef({});
 
-  useScrollPosition(({currPos}) => {
-    const y = -currPos.y + (window.innerHeight / 10)
-    for (let i=0; i<totalPage; i++) {
-      if (!pageRefs[i] || !pageRefs[i].current || !pageRefs[i].current.ref) break;
-      if (y < pageRefs[i].current.ref.offsetTop + pageRefs[i].current.ref.offsetHeight) {
-        setPage(i+1)
-        break;
-      }
-    }
-  })
+  // useScrollPosition(({currPos}) => {
+  //   const y = -currPos.y + (window.innerHeight / 10)
+  //   for (let i=0; i<totalPage; i++) {
+  //     if (!pageRefs[i] || !pageRefs[i].current || !pageRefs[i].current.ref) break;
+  //     if (y < pageRefs[i].current.ref.offsetTop + pageRefs[i].current.ref.offsetHeight) {
+  //       setPage(i+1)
+  //       break;
+  //     }
+  //   }
+  // })
   
   // async function openPdf(file) {
   //   const pdfDoc = await PDFDocument.load(await file.arrayBuffer())
@@ -80,6 +80,19 @@ function App() {
   function OpenSignaturePad() {
     setPadModalOpen(!padModalOpen);
     document.getElementsByTagName('body')[0].style.overflow='hidden';
+  }
+
+  function GoPage(state) {
+    console.log('state');
+    if(state === 'next') {
+      if(page < totalPage) {
+        setPage(page + 1);
+      }
+    } else if(state === 'pre') {
+      if(page-1 > 0) {
+        setPage(page-1);
+      }
+    }
   }
 
   function SaveSignature() {
@@ -151,11 +164,13 @@ function App() {
   return (
     <div className="App">
       <Header filename={fileName} totalPage={totalPage} currentPage={page} />
-      <Toolbar setScale={setScale} scale={scale} />
       { pdfByte ?
           <div className="Editor">
               <div className="Editor-item" onClick={ OpenSignaturePad }>SignatureDocument</div>
               <div className="Editor-item" onClick={ Download }>Download</div>
+              <br />
+              <div className="Editor-item" onClick={ () => GoPage('next') }>Next Page</div>
+              <div className="Editor-item" onClick={ () => GoPage('pre') }>Previous Page</div>
           </div>
           : null
 
@@ -182,25 +197,27 @@ function App() {
             }
         </div> : null
       }
-      { pdfByte ?
-        <div>
-          <Document onLoadSuccess={loadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
-            {AllPages}
-            {imageURL ? (
-              <Drag imgSrc={imageURL}></Drag>
-              ) : null
-            }
-          </Document>
-        </div> :
-      <div {...getRootProps()} className="Dropzone">
-        <input {...getInputProps()} />
-        {
-          isDragActive ? 
-          <p>Upload Document to Sign</p> :
-          <p>Upload Document to Sign</p>
+      <div>
+        { pdfByte ?
+          <div>
+            <Document onLoadSuccess={loadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
+              <Page ref={pageRefs[1]} scale={scale || 1} pageNumber={page} onLoadSuccess={onPageLoad} />
+              {imageURL ? (
+                <Drag imgSrc={imageURL}></Drag>
+                ) : null
+              }
+            </Document>
+          </div> :
+        <div {...getRootProps()} className="Dropzone">
+          <input {...getInputProps()} />
+          {
+            isDragActive ? 
+            <p>Upload Document to Sign</p> :
+            <p>Upload Document to Sign</p>
+          }
+        </div>
         }
       </div>
-      }
     </div>
   )
 }
