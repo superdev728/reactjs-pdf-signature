@@ -4,7 +4,6 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import { useDropzone } from 'react-dropzone'
 import Header from './Header'
 import Toolbar from './Toolbar'
-import Signature from './Signature'
 import { useScrollPosition } from './hook/useScroll'
 import SignaturePad from 'react-signature-canvas';
 
@@ -24,6 +23,7 @@ function App() {
   const [scale, setScale] = useState(1.0)
   const [padModalOpen, setPadModalOpen] = useState(true)
   const pageRefs = useMemo(() => Array.from({length: totalPage}).map(()=>React.createRef()), [totalPage])
+  const [imageURL, setImageURL] = useState(null);
 
   const sigCanvas = useRef({});
 
@@ -77,8 +77,21 @@ function App() {
 
   }
 
-  function SaveSignature() {
+  function OpenSignaturePad() {
+    setPadModalOpen(!padModalOpen);
+    document.getElementsByTagName('body')[0].style.overflow='hidden';
+  }
 
+  function SaveSignature() {
+    setImageURL(sigCanvas.current.getTrimmedCanvas().toDataURL("image/png"));
+    document.getElementsByTagName('body')[0].style.overflow='inherit';
+    setPadModalOpen(!padModalOpen)
+  }
+  
+  function CloseModal() {
+    console.log(padModalOpen, document.getElementsByTagName('body')[0].style.overflow, "close modal");
+    document.getElementsByTagName('body')[0].style.overflow='inherit';
+    setPadModalOpen(!padModalOpen)
   }
 
   useEffect(() => {
@@ -89,22 +102,16 @@ function App() {
   for (var i=1; i<=totalPage; i++) {
     AllPages.push(<Page key={i} ref={pageRefs[i-1]} scale={scale || 1} pageNumber={i} onLoadSuccess={onPageLoad} />)
   }
-
-  !padModalOpen ?
-    document.getElementsByTagName('body')[0].style.overflow='hidden'
-  :
-    document.getElementsByTagName('body')[0].style.overflow='inital'
   return (
     <div className="App">
       <Header filename={fileName} totalPage={totalPage} currentPage={page} />
       <Toolbar setScale={setScale} scale={scale} />
       { pdfByte ?
           <div className="Editor">
-              <div className="Editor-item" onClick={ () => setPadModalOpen(!padModalOpen) }>{ padModalOpen ? "SignatureDocument" : "Cancel"}</div>
+              <div className="Editor-item" onClick={ OpenSignaturePad }>{ padModalOpen ? "SignatureDocument" : "Cancel"}</div>
               <div className="Editor-item" onClick={ Download }>Download</div>
           </div>
-          :
-          <></>
+          : null
 
       }
       { pdfByte ?
@@ -119,21 +126,33 @@ function App() {
                     }}
                   />
                   <div className="signature-buttons">
-                    <button className="Editor-item">Save</button>
-                    <button className="Editor-item" onClick={() => {sigCanvas.current.clear()}}>Clear</button>
-                    <button className="Editor-item" onClick={() => {setPadModalOpen(!padModalOpen)}}>Cancel</button>
+                    <button className="Editor-item" onClick={ SaveSignature }>Save</button>
+                    <button className="Editor-item" onClick={ () => {sigCanvas.current.clear()} }>Clear</button>
+                    <button className="Editor-item" onClick={ CloseModal} >Cancel</button>
                   </div>
                 </div>
               :
-              <></>
+              null
             }
-        </div> :
-        <></>
+        </div> : null
       }
       { pdfByte ?
         <div>
           <Document onLoadSuccess={loadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
             {AllPages}
+            {imageURL ? (
+                <img
+                  src={imageURL}
+                  alt="my signature"
+                  style={{
+                    display: 'block',
+                    width: '10%',
+                    position: 'absolute',
+                    marginTop: '30vh'
+                  }}
+                />
+              ) : null
+            }
           </Document>
         </div> :
       <div {...getRootProps()} className="Dropzone">
