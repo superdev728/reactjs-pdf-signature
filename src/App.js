@@ -5,7 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import Header from './Header'
 import Toolbar from './Toolbar'
 import { useScrollPosition } from './hook/useScroll'
-import SignaturePad from 'react-signature-canvas';
+import SignaturePad from 'react-signature-canvas'
 
 import './App.css';
 import "./sigCanvas.css";
@@ -94,6 +94,52 @@ function App() {
     setPadModalOpen(!padModalOpen)
   }
 
+  function Drag(props) {
+    let dragStartLeft = null;
+    let dragStartTop = null;
+    let dragStartX = null;
+    let dragStartY = null;
+    let handleRef = null;
+
+    const setHandleRef = (ref) => {
+      handleRef = ref;
+    }
+      
+    const initialiseDrag = (event) => {
+      const {target, clientX, clientY} = event;
+      const { offsetTop, offsetLeft } = target;
+      const { left, top } = handleRef.getBoundingClientRect();
+      dragStartLeft = left - offsetLeft;
+      dragStartTop = top - offsetTop;
+      dragStartX = clientX;
+      dragStartY = clientY;
+      window.addEventListener('mousemove', startDragging, false);
+      window.addEventListener('mouseup', stopDragging, false);
+    }
+    
+    const startDragging = ({ clientX, clientY }) => {    
+      handleRef.style.transform = `translate(${ dragStartLeft + clientX - dragStartX}px, ${dragStartTop + clientY - dragStartY}px)`;
+    }
+  
+    const stopDragging = () => {
+      window.removeEventListener('mousemove', startDragging, false);
+      window.removeEventListener('mouseup', stopDragging, false);
+    }  
+    
+    return <img
+       onMouseDown={initialiseDrag} 
+       ref={setHandleRef}
+        src={props.imgSrc}
+        alt="my signature"
+        style={{
+          display: 'block',
+          width: '10%',
+          position: 'absolute',
+          marginTop: '30vh'
+        }}
+      />
+  }
+
   useEffect(() => {
     console.log("init")
   }, [])
@@ -108,7 +154,7 @@ function App() {
       <Toolbar setScale={setScale} scale={scale} />
       { pdfByte ?
           <div className="Editor">
-              <div className="Editor-item" onClick={ OpenSignaturePad }>{ padModalOpen ? "SignatureDocument" : "Cancel"}</div>
+              <div className="Editor-item" onClick={ OpenSignaturePad }>SignatureDocument</div>
               <div className="Editor-item" onClick={ Download }>Download</div>
           </div>
           : null
@@ -141,16 +187,7 @@ function App() {
           <Document onLoadSuccess={loadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
             {AllPages}
             {imageURL ? (
-                <img
-                  src={imageURL}
-                  alt="my signature"
-                  style={{
-                    display: 'block',
-                    width: '10%',
-                    position: 'absolute',
-                    marginTop: '30vh'
-                  }}
-                />
+              <Drag imgSrc={imageURL}></Drag>
               ) : null
             }
           </Document>
