@@ -1,80 +1,70 @@
 import React, {useEffect, useState, useCallback, useMemo, useRef } from 'react'
-// import { PDFDocument } from 'pdf-lib'
 import { Document, Page, pdfjs } from 'react-pdf'
+// import { Document, Page, PDFViewer  } from '@react-pdf/renderer'
 import { useDropzone } from 'react-dropzone'
-import Header from './Header'
-import Toolbar from './Toolbar'
-import { useScrollPosition } from './hook/useScroll'
 import SignaturePad from 'react-signature-canvas'
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 import './App.css';
 import "./sigCanvas.css";
+import { pdf } from '@react-pdf/renderer';
 
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`
 
+const imageUrls = [];
+
 function App() {
   
-  const [page, setPage] = useState(null)
+  const [page, setPage] = useState(1)
   const [totalPage, setTotalPage] = useState(null)
   const [errorMsg, setErrorMsg] = useState("")
   const [pdfByte, setPdfByte] = useState(null)
-  const [fileName, setFileName] = useState(null)
+  // const [fileName, setFileName] = useState(null)
   const [scale, setScale] = useState(1.0)
   const [padModalOpen, setPadModalOpen] = useState(true)
   const pageRefs = useMemo(() => Array.from({length: totalPage}).map(()=>React.createRef()), [totalPage])
-  const [imageURL, setImageURL] = useState(null);
-
+  const [imageURLs, setImageURLs] = useState(null);
+  const [imgPos, setImgPos] = useState(null)
   const sigCanvas = useRef({});
 
-  // useScrollPosition(({currPos}) => {
-  //   const y = -currPos.y + (window.innerHeight / 10)
-  //   for (let i=0; i<totalPage; i++) {
-  //     if (!pageRefs[i] || !pageRefs[i].current || !pageRefs[i].current.ref) break;
-  //     if (y < pageRefs[i].current.ref.offsetTop + pageRefs[i].current.ref.offsetHeight) {
-  //       setPage(i+1)
-  //       break;
-  //     }
-  //   }
-  // })
-  
-  // async function openPdf(file) {
-  //   const pdfDoc = await PDFDocument.load(await file.arrayBuffer())
-  //   const page = pdfDoc.addPage([350, 400])
-  //   page.moveTo(110, 200)
-  //   page.drawText('Hello World!')
-  //   //iframeEl.current.src = await pdfDoc.saveAsBase64({ dataUri: true })
-  //   setPdfByte({data: await pdfDoc.save()})
-  // }
-  
   const onDrop = useCallback(acceptedFiles => {
     if (acceptedFiles && acceptedFiles.length && acceptedFiles[0]) {
-      setFileName(acceptedFiles[0].name)
+      // setFileName(acceptedFiles[0].name)
       acceptedFiles[0].arrayBuffer().then(x => setPdfByte({data: x}))
     }
   }, [])
-  const {getRootProps, getInputProps, isDragActive} = useDropzone({onDrop})
-
-  function loadSuccess(pdf) {
-    setTotalPage(pdf.numPages)
-    setPage(1)
-  }
-
-  function loadError(error) {
-    setErrorMsg(error.message)
-  }
-
-  function onPassword(callback) {
-    const password = prompt("Password")
-    callback(password)
-  }
+  const {getRootProps, getInputProps} = useDropzone({onDrop})
 
   function onPageLoad(page) {
     // console.log(page)
-  }
+  };
 
-  function Download() {
-
+  async function Download() {
+    const PDFElement = document.getElementsByClassName('react-pdf__Document')[0];
+    await html2canvas(PDFElement, {
+      height: PDFElement.offsetHeight,
+      scrollY: -window.scrollY,
+      scrollX: -window.scrollX,
+      windowHeight:
+      PDFElement.offsetHeight,
+    }).then((canvas) => {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("", "pt", [canvas.width, canvas.height]);
+        pdf.addImage(
+          imgData,
+          "png",
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+          ("a"),
+          "FAST"
+        );
+        console.log(pdf);
+        // pdf.save("sample.pdf");
+    })
   }
 
   function OpenSignaturePad() {
@@ -83,7 +73,6 @@ function App() {
   }
 
   function GoPage(state) {
-    console.log('state');
     if(state === 'next') {
       if(page < totalPage) {
         setPage(page + 1);
@@ -96,13 +85,19 @@ function App() {
   }
 
   function SaveSignature() {
-    setImageURL(sigCanvas.current.getTrimmedCanvas().toDataURL("image/png"));
+    const imgUrl = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
+    const signData = {};
+    signData[page] = {
+      ImgURL: imgUrl,
+      imagePosition: imgPos,
+    }
+    imageUrls.push(signData);
+    setImageURLs(imageUrls);
     document.getElementsByTagName('body')[0].style.overflow='inherit';
-    setPadModalOpen(!padModalOpen)
+    setPadModalOpen(!padModalOpen);
   }
   
   function CloseModal() {
-    console.log(padModalOpen, document.getElementsByTagName('body')[0].style.overflow, "close modal");
     document.getElementsByTagName('body')[0].style.overflow='inherit';
     setPadModalOpen(!padModalOpen)
   }
@@ -113,6 +108,7 @@ function App() {
     let dragStartX = null;
     let dragStartY = null;
     let handleRef = null;
+    let imgPosition = '';
 
     const setHandleRef = (ref) => {
       handleRef = ref;
@@ -131,47 +127,86 @@ function App() {
     }
     
     const startDragging = ({ clientX, clientY }) => {    
-      handleRef.style.transform = `translate(${ dragStartLeft + clientX - dragStartX}px, ${dragStartTop + clientY - dragStartY}px)`;
+      imgPosition = `translate(${ dragStartLeft + clientX - dragStartX}px, ${dragStartTop + clientY - dragStartY}px)`;
+      handleRef.style.transform = imgPosition;
     }
   
     const stopDragging = () => {
+      setImgPos(imgPosition)
       window.removeEventListener('mousemove', startDragging, false);
       window.removeEventListener('mouseup', stopDragging, false);
     }  
     
     return <img
-       onMouseDown={initialiseDrag} 
-       ref={setHandleRef}
+        onMouseDown={initialiseDrag} 
+        ref={setHandleRef}
         src={props.imgSrc}
         alt="my signature"
         style={{
           display: 'block',
           width: '10%',
+          height: '10%',
           position: 'absolute',
-          marginTop: '30vh'
+          transform: `${imgPos}`,
+          // marginTop: '30vh'
         }}
       />
+  }
+
+  function MyDocument() {
+    function loadSuccess(pdf) {
+      setTotalPage(pdf.numPages)
+      // setPage(1)
+    }
+  
+    function loadError(error) {
+      setErrorMsg(error.message)
+    }
+  
+    function onPassword(callback) {
+      const password = prompt("Password")
+      callback(password)
+    }
+
+    return <Document onLoadSuccess={loadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
+              <Page ref={pageRefs[1]} scale={scale || 1} pageNumber={page} onLoadSuccess={onPageLoad} />
+              {imageURLs ? <>
+                {
+                  imageURLs.map((item) => {
+                  return Object.keys(item).map((key) => {
+                    return key == page ?  <Drag key={key} imgSrc={item[page]['ImgURL']}></Drag> : null
+                    })
+                  })
+                }
+              </>
+                : null
+              }
+            </Document>
+  }
+
+  function fileupload(e) {
+    console.log(e.target.files[0]);
   }
 
   useEffect(() => {
     console.log("init")
   }, [])
 
-  let AllPages = []
-  for (var i=1; i<=totalPage; i++) {
-    AllPages.push(<Page key={i} ref={pageRefs[i-1]} scale={scale || 1} pageNumber={i} onLoadSuccess={onPageLoad} />)
-  }
   return (
     <div className="App">
-      <Header filename={fileName} totalPage={totalPage} currentPage={page} />
       { pdfByte ?
-          <div className="Editor">
-              <div className="Editor-item" onClick={ OpenSignaturePad }>SignatureDocument</div>
-              <div className="Editor-item" onClick={ Download }>Download</div>
-              <br />
-              <div className="Editor-item" onClick={ () => GoPage('next') }>Next Page</div>
-              <div className="Editor-item" onClick={ () => GoPage('pre') }>Previous Page</div>
-          </div>
+          <>
+            <div className="show-page">
+              <p>{page} of {totalPage}</p>
+            </div>
+            <div className="Editor">
+                <div className="Editor-item" onClick={ OpenSignaturePad }>SignatureDocument</div>
+                <div className="Editor-item" onClick={ Download }>Download</div>
+                <br />
+                <div className="Editor-item" onClick={ () => GoPage('next') }>Next Page</div>
+                <div className="Editor-item" onClick={ () => GoPage('pre') }>Previous Page</div>
+            </div>
+          </>
           : null
 
       }
@@ -200,22 +235,30 @@ function App() {
       <div>
         { pdfByte ?
           <div>
-            <Document onLoadSuccess={loadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
-              <Page ref={pageRefs[1]} scale={scale || 1} pageNumber={page} onLoadSuccess={onPageLoad} />
-              {imageURL ? (
-                <Drag imgSrc={imageURL}></Drag>
-                ) : null
+            {/* <PDFDownloadLink document={<MyDocument />} filename="sample.pdf">Download</PDFDownloadLink> */}
+            <MyDocument></MyDocument>
+            {/* <Document onLoadSuccess={loadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
+              <Page ref={pageRefs[1]} scale={scale || 1} pageNumber={Number(page)} onLoadSuccess={onPageLoad} />
+              {imageURLs ? <>
+                {
+                  imageURLs.map((item) => {
+                   return Object.keys(item).map((key) => {
+                     return key == page ?  <Drag key={key} imgSrc={item[page]['ImgURL']}></Drag> : null
+                    })
+                  })
+                }
+              </>
+                : null
               }
-            </Document>
-          </div> :
+            </Document> */}
+          </div> : 
         <div {...getRootProps()} className="Dropzone">
           <input {...getInputProps()} />
           {
-            isDragActive ? 
-            <p>Upload Document to Sign</p> :
             <p>Upload Document to Sign</p>
           }
         </div>
+
         }
       </div>
     </div>
