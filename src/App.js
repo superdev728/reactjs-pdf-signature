@@ -1,6 +1,5 @@
 import React, {useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { Document, Page, pdfjs } from 'react-pdf'
-// import { Document, Page, PDFViewer  } from '@react-pdf/renderer'
+import { Document, Page, pdfjs } from 'react-pdf/dist/umd/entry.webpack'
 import { useDropzone } from 'react-dropzone'
 import SignaturePad from 'react-signature-canvas'
 import html2canvas from "html2canvas";
@@ -8,8 +7,6 @@ import { jsPDF } from "jspdf";
 
 import './App.css';
 import "./sigCanvas.css";
-import { pdf } from '@react-pdf/renderer';
-
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`
 
@@ -24,10 +21,11 @@ function App() {
   // const [fileName, setFileName] = useState(null)
   const [scale, setScale] = useState(1.0)
   const [padModalOpen, setPadModalOpen] = useState(true)
-  const pageRefs = useMemo(() => Array.from({length: totalPage}).map(()=>React.createRef()), [totalPage])
-  const [imageURLs, setImageURLs] = useState(null);
+  const [imageURLs, setImageURLs] = useState(null)
   const [imgPos, setImgPos] = useState(null)
+  const [pageNavigateState, setPageNavigateState] = useState(false)
   const sigCanvas = useRef({});
+  const pageRefs = useMemo(() => Array.from({length: totalPage}).map(()=>React.createRef()), [totalPage])
 
   const onDrop = useCallback(acceptedFiles => {
     if (acceptedFiles && acceptedFiles.length && acceptedFiles[0]) {
@@ -37,9 +35,32 @@ function App() {
   }, [])
   const {getRootProps, getInputProps} = useDropzone({onDrop})
 
+  const UploadFile = (e) => {
+    let url = '';
+    if(e.key && e.key === 'Enter') {
+      url = e.target.value;
+    } else if(e.type === 'click') {
+      url = document.getElementsByClassName('file-input')[0].value
+    }
+  }
+
   function onPageLoad(page) {
     // console.log(page)
   };
+
+  function onDocumentLoadSuccess(pdf) {
+    setTotalPage(pdf.numPages)
+    // setPage(1)
+  }
+
+  function loadError(error) {
+    setErrorMsg(error.message)
+  }
+
+  function onPassword(callback) {
+    const password = prompt("Password")
+    callback(password)
+  }
 
   async function Download() {
     const PDFElement = document.getElementsByClassName('react-pdf__Document')[0];
@@ -62,8 +83,7 @@ function App() {
           ("a"),
           "FAST"
         );
-        console.log(pdf);
-        // pdf.save("sample.pdf");
+        pdf.save("sample.pdf");
     })
   }
 
@@ -73,6 +93,7 @@ function App() {
   }
 
   function GoPage(state) {
+    setPageNavigateState(true)
     if(state === 'next') {
       if(page < totalPage) {
         setPage(page + 1);
@@ -89,7 +110,7 @@ function App() {
     const signData = {};
     signData[page] = {
       ImgURL: imgUrl,
-      imagePosition: imgPos,
+      imagePosition: imgPos ? imgPos : null,
     }
     imageUrls.push(signData);
     setImageURLs(imageUrls);
@@ -132,11 +153,11 @@ function App() {
     }
   
     const stopDragging = () => {
-      setImgPos(imgPosition)
+      setImgPos(imgPosition);
       window.removeEventListener('mousemove', startDragging, false);
       window.removeEventListener('mouseup', stopDragging, false);
     }  
-    
+    console.log(props.imgPos, imgPos);
     return <img
         onMouseDown={initialiseDrag} 
         ref={setHandleRef}
@@ -147,50 +168,23 @@ function App() {
           width: '10%',
           height: '10%',
           position: 'absolute',
-          transform: `${imgPos}`,
-          // marginTop: '30vh'
+          transform: `${pageNavigateState ? props.imgPos : imgPos}`,
         }}
       />
   }
 
-  function MyDocument() {
-    function loadSuccess(pdf) {
-      setTotalPage(pdf.numPages)
-      // setPage(1)
-    }
-  
-    function loadError(error) {
-      setErrorMsg(error.message)
-    }
-  
-    function onPassword(callback) {
-      const password = prompt("Password")
-      callback(password)
-    }
-
-    return <Document onLoadSuccess={loadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
-              <Page ref={pageRefs[1]} scale={scale || 1} pageNumber={page} onLoadSuccess={onPageLoad} />
-              {imageURLs ? <>
-                {
-                  imageURLs.map((item) => {
-                  return Object.keys(item).map((key) => {
-                    return key == page ?  <Drag key={key} imgSrc={item[page]['ImgURL']}></Drag> : null
-                    })
-                  })
-                }
-              </>
-                : null
-              }
-            </Document>
-  }
-
-  function fileupload(e) {
-    console.log(e.target.files[0]);
-  }
-
   useEffect(() => {
-    console.log("init")
-  }, [])
+    let ImgURLs = [];
+    imageURLs && imageURLs.map((item) => {
+      Object.keys(item).map((key) => {
+        if(page == key) {
+          item[page]['imagePosition'] = imgPos;
+        }
+        ImgURLs.push(item);
+       })
+     })
+    console.log(imageURLs);
+  }, [imgPos])
 
   return (
     <div className="App">
@@ -235,31 +229,31 @@ function App() {
       <div>
         { pdfByte ?
           <div>
-            {/* <PDFDownloadLink document={<MyDocument />} filename="sample.pdf">Download</PDFDownloadLink> */}
-            <MyDocument></MyDocument>
-            {/* <Document onLoadSuccess={loadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
+            <Document onLoadSuccess={onDocumentLoadSuccess} onLoadError={loadError} onPassword={onPassword} file={pdfByte}>
               <Page ref={pageRefs[1]} scale={scale || 1} pageNumber={Number(page)} onLoadSuccess={onPageLoad} />
               {imageURLs ? <>
                 {
                   imageURLs.map((item) => {
                    return Object.keys(item).map((key) => {
-                     return key == page ?  <Drag key={key} imgSrc={item[page]['ImgURL']}></Drag> : null
+                     return key == page ?  <Drag key={key} imgSrc={item[page]['ImgURL']} imgPos={item[page]['imagePosition']}></Drag> : null
                     })
                   })
                 }
               </>
                 : null
               }
-            </Document> */}
-          </div> : 
-        <div {...getRootProps()} className="Dropzone">
-          <input {...getInputProps()} />
-          {
-            <p>Upload Document to Sign</p>
-          }
-        </div>
-
+            </Document>
+          </div> 
+          : 
+          <div {...getRootProps()} className="Dropzone">
+            <input {...getInputProps()} />
+            {
+              <p>Upload Document to Sign</p>
+            }
+          </div>
         }
+        {/* <MyDocument></MyDocument>
+        <input type="url" className="file-input" onKeyPress={(e) => UploadFile(e)} placeholder="Please write the document url here." /> <button className="file-upload" onClick={(e) => UploadFile(e)}>Upload</button> */}
       </div>
     </div>
   )

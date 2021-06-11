@@ -134,3 +134,13 @@
     right: 0;
     margin-right: 5rem;
 }
+
+.file-input {
+    width: 30vw;
+    height: 3vh;
+    outline: navajowhite;
+}
+
+.file-upload {
+    height: 3vh;
+}
