@@ -54,29 +54,52 @@ function App() {
     callback(password)
   }
 
+  const delay = ms => new Promise(res => setTimeout(res, ms));	
+
   async function Download() {
-    const PDFElement = document.getElementsByClassName('react-pdf__Document')[0];
-    await html2canvas(PDFElement, {
-      height: PDFElement.offsetHeight,
-      scrollY: -window.scrollY,
-      scrollX: -window.scrollX,
-      windowHeight:
-      PDFElement.offsetHeight,
-    }).then((canvas) => {
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("", "pt", [canvas.width, canvas.height]);
-        pdf.addImage(
-          imgData,
-          "png",
-          0,
-          0,
-          canvas.width,
-          canvas.height,
-          ("a"),
-          "FAST"
-        );
-        pdf.save("sample.pdf");
-    })
+    let pdf;
+    for(var i = 1; i <= totalPage; i++) {
+      setPage(i);
+      await delay(2000);
+      const PDFElement = document.getElementsByClassName('react-pdf__Document')[0];
+
+      await html2canvas(PDFElement, {
+        height: PDFElement.offsetHeight,
+        scrollY: -window.scrollY,
+        scrollX: -window.scrollX,
+        windowHeight:
+        PDFElement.offsetHeight,
+      }).then((canvas) => {
+          const imgData = canvas.toDataURL("image/png");
+          if(i === 1) {
+            pdf = new jsPDF("", "pt", [canvas.width, canvas.height]);
+            pdf.addImage(
+              imgData,
+              "png",
+              0,
+              0,
+              canvas.width,
+              canvas.height,
+              ("a" + i),
+              "FAST"
+            );
+          } else {
+            pdf.addPage("", "pt", [canvas.width, canvas.height])
+            pdf.addImage(
+              imgData,
+              "png",
+              0,
+              0,
+              canvas.width,
+              canvas.height,
+              ("a" + i),
+              "FAST"
+            );
+          }
+      })
+    }
+    
+    pdf.save("sample.pdf");
   }
 
   function OpenSignaturePad() {
