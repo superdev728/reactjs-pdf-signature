@@ -23,6 +23,7 @@ function App() {
   const [padModalOpen, setPadModalOpen] = useState(true)
   const [imageURLs, setImageURLs] = useState(null)
   const [imgPos, setImgPos] = useState(null)
+  const [dateState, setDateState] = useState(false)
   const [pageNavigateState, setPageNavigateState] = useState(false)
   const sigCanvas = useRef({});
   const pageRefs = useMemo(() => Array.from({length: totalPage}).map(()=>React.createRef()), [totalPage])
@@ -34,15 +35,6 @@ function App() {
     }
   }, [])
   const {getRootProps, getInputProps} = useDropzone({onDrop})
-
-  const UploadFile = (e) => {
-    let url = '';
-    if(e.key && e.key === 'Enter') {
-      url = e.target.value;
-    } else if(e.type === 'click') {
-      url = document.getElementsByClassName('file-input')[0].value
-    }
-  }
 
   function onPageLoad(page) {
     // console.log(page)
@@ -107,10 +99,13 @@ function App() {
 
   function SaveSignature() {
     const imgUrl = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
+    var date = new Date();
+    var signedDate = `${date.getFullYear()}/${(date.getMonth()+1) < 10 ? '0' + (date.getMonth()+1) : date.getMonth()+1}/${date.getDate()}`;
     const signData = {};
     signData[page] = {
       ImgURL: imgUrl,
       imagePosition: imgPos ? imgPos : null,
+      signedDate
     }
     imageUrls.push(signData);
     setImageURLs(imageUrls);
@@ -121,6 +116,10 @@ function App() {
   function CloseModal() {
     document.getElementsByTagName('body')[0].style.overflow='inherit';
     setPadModalOpen(!padModalOpen)
+  }
+
+  function AddDate() {
+    setDateState(!dateState);
   }
 
   function Drag(props) {
@@ -154,11 +153,14 @@ function App() {
   
     const stopDragging = () => {
       setImgPos(imgPosition);
+      setPageNavigateState(false)
+
       window.removeEventListener('mousemove', startDragging, false);
       window.removeEventListener('mouseup', stopDragging, false);
-    }  
-    console.log(props.imgPos, imgPos);
-    return <img
+    }
+    
+    return <>
+      <img
         onMouseDown={initialiseDrag} 
         ref={setHandleRef}
         src={props.imgSrc}
@@ -168,9 +170,16 @@ function App() {
           width: '10%',
           height: '10%',
           position: 'absolute',
+          zIndex: '2',
           transform: `${pageNavigateState ? props.imgPos : imgPos}`,
         }}
       />
+      <span
+        className={dateState ? 'signed-date' : 'd-none'}
+        style={{
+          transform: `${pageNavigateState ? props.imgPos : imgPos}`,
+        }}>{props.signedDate}</span>
+    </>
   }
 
   useEffect(() => {
@@ -183,7 +192,6 @@ function App() {
         ImgURLs.push(item);
        })
      })
-    console.log(imageURLs);
   }, [imgPos])
 
   return (
@@ -194,7 +202,8 @@ function App() {
               <p>{page} of {totalPage}</p>
             </div>
             <div className="Editor">
-                <div className="Editor-item" onClick={ OpenSignaturePad }>SignatureDocument</div>
+                <div className="Editor-item" onClick={ OpenSignaturePad }>Signature Document</div>
+                <div className="Editor-item" onClick={ AddDate }>{!dateState ? "Add Date" : "Delete Date"}</div>
                 <div className="Editor-item" onClick={ Download }>Download</div>
                 <br />
                 <div className="Editor-item" onClick={ () => GoPage('next') }>Next Page</div>
@@ -235,7 +244,7 @@ function App() {
                 {
                   imageURLs.map((item) => {
                    return Object.keys(item).map((key) => {
-                     return key == page ?  <Drag key={key} imgSrc={item[page]['ImgURL']} imgPos={item[page]['imagePosition']}></Drag> : null
+                     return key == page ?  <Drag key={key} imgSrc={item[page]['ImgURL']} imgPos={item[page]['imagePosition']} signedDate={item[page]['signedDate']}></Drag> : null
                     })
                   })
                 }
