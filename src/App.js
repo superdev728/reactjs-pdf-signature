@@ -18,10 +18,10 @@ function App() {
   const [totalPage, setTotalPage] = useState(null)
   const [errorMsg, setErrorMsg] = useState("")
   const [pdfByte, setPdfByte] = useState(null)
-  // const [fileName, setFileName] = useState(null)
   const [scale, setScale] = useState(1.0)
   const [padModalOpen, setPadModalOpen] = useState(true)
   const [imageURLs, setImageURLs] = useState(null)
+  const [fileName, setFileName] = useState('sample')
   const [imgPos, setImgPos] = useState(null)
   const [dateState, setDateState] = useState(false)
   const [pageNavigateState, setPageNavigateState] = useState(false)
@@ -30,19 +30,19 @@ function App() {
 
   const onDrop = useCallback(acceptedFiles => {
     if (acceptedFiles && acceptedFiles.length && acceptedFiles[0]) {
-      // setFileName(acceptedFiles[0].name)
+      setFileName(acceptedFiles[0].name)
       acceptedFiles[0].arrayBuffer().then(x => setPdfByte({data: x}))
     }
   }, [])
   const {getRootProps, getInputProps} = useDropzone({onDrop})
 
-  function onPageLoad(page) {
-    // console.log(page)
-  };
-
   function onDocumentLoadSuccess(pdf) {
     setTotalPage(pdf.numPages)
     // setPage(1)
+  }
+
+  function onPageLoad() {
+    console.log("onPageLoad");
   }
 
   function loadError(error) {
@@ -60,7 +60,9 @@ function App() {
     let pdf;
     for(var i = 1; i <= totalPage; i++) {
       setPage(i);
+      setPageNavigateState(true);
       await delay(2000);
+
       const PDFElement = document.getElementsByClassName('react-pdf__Document')[0];
 
       await html2canvas(PDFElement, {
@@ -99,7 +101,7 @@ function App() {
       })
     }
     
-    pdf.save("sample.pdf");
+    pdf.save(`${fileName}.pdf`);
   }
 
   function OpenSignaturePad() {
@@ -186,7 +188,7 @@ function App() {
       <img
         onMouseDown={initialiseDrag} 
         ref={setHandleRef}
-        src={props.imgSrc}
+        src={props.item[page]['ImgURL']}
         alt="my signature"
         style={{
           display: 'block',
@@ -194,14 +196,14 @@ function App() {
           height: '10%',
           position: 'absolute',
           zIndex: '2',
-          transform: `${pageNavigateState ? props.imgPos : imgPos}`,
+          transform: `${pageNavigateState ? props.item[page]['imagePosition'] : imgPos}`,
         }}
       />
       <span
         className={dateState ? 'signed-date' : 'd-none'}
         style={{
-          transform: `${pageNavigateState ? props.imgPos : imgPos}`,
-        }}>{props.signedDate}</span>
+          transform: `${pageNavigateState ? props.item[page]['imagePosition'] : imgPos}`,
+        }}>{props.item[page]['signedDate']}</span>
     </>
   }
 
@@ -209,12 +211,13 @@ function App() {
     let ImgURLs = [];
     imageURLs && imageURLs.map((item) => {
       Object.keys(item).map((key) => {
-        if(page == key) {
+        if(parseInt(page, 10) === parseInt(key, 10)) {
           item[page]['imagePosition'] = imgPos;
         }
         ImgURLs.push(item);
        })
      })
+     // eslint-disable-next-line
   }, [imgPos])
 
   return (
@@ -267,7 +270,7 @@ function App() {
                 {
                   imageURLs.map((item) => {
                    return Object.keys(item).map((key) => {
-                     return key == page ?  <Drag key={key} imgSrc={item[page]['ImgURL']} imgPos={item[page]['imagePosition']} signedDate={item[page]['signedDate']}></Drag> : null
+                     return parseInt(key, 10) === parseInt(page, 10) ?  <Drag key={key} item={item}></Drag> : null
                     })
                   })
                 }
